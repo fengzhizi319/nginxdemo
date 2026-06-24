@@ -1,0 +1,19 @@
+{
+  "name": "nginxdemo-frontend",
+  "version": "1.0.0",
+  "description": "用于学习 Nginx + Tomcat 的 UmiJS 4 React 前端示例",
+  "private": true,
+  "scripts": {
+    "dev": "umi dev",
+    "build": "umi build",
+    "start": "npm run dev"
+  },
+  "dependencies": {
+    "umi": "^4.4.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5"
+  }
+}

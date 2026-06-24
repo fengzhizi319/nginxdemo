@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Spring Boot 后端工程的 Maven 描述文件。
+  关键知识点：
+  1. <packaging>war</packaging>：把项目打包成 WAR 文件，方便部署到外置 Tomcat。
+  2. <scope>provided</scope> 的 spring-boot-starter-tomcat：告诉 Maven 编译时使用 Tomcat API，
+     但部署时不把 Tomcat 打包进去，因为外置 Tomcat 已经自带这些类。
+  3. SpringBootServletInitializer：外置 Tomcat 启动 WAR 包时必须继承它，才能让 Spring Boot 正确初始化。
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- 项目坐标：组织名、项目名、版本 -->
+    <groupId>com.example</groupId>
+    <artifactId>nginxdemo-backend</artifactId>
+    <version>1.0.0</version>
+
+    <!-- 打包方式：WAR（Web Application Archive），适合放进 Tomcat 的 webapps 目录 -->
+    <packaging>war</packaging>
+
+    <name>nginxdemo-backend</name>
+    <description>用于学习 Nginx + Tomcat 的 Spring Boot 后端示例</description>
+
+    <!-- 继承 Spring Boot 的依赖管理，统一版本 -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.12</version>
+        <relativePath/>
+    </parent>
+
+    <properties>
+        <!-- 使用 Java 17，与 Spring Boot 3.x 兼容 -->
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- Spring Boot Web：提供内嵌 Tomcat、Spring MVC、REST 支持 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!--
+          单独声明 spring-boot-starter-tomcat，并设置 scope=provided。
+          外置 Tomcat 部署 WAR 时这是标准做法：
+          - 编译期需要 Tomcat 的类（例如 ServletRequest）。
+          - 运行期由外置 Tomcat 提供这些类，所以不需要打进 WAR。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- 测试依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- 最终生成的 WAR 文件名，这里叫 backend.war，方便部署 -->
+        <finalName>backend</finalName>
+        <plugins>
+            <!-- Spring Boot Maven 插件：支持打包和运行 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

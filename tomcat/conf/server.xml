@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  =============================================================================
+  Tomcat 主配置文件 server.xml
+  =============================================================================
+  这是 Tomcat 最重要的配置文件，描述了 Tomcat 的整体架构：
+
+  Server
+    └── Service（一个或多个）
+          ├── Connector（监听端口，接收请求）
+          └── Engine（请求处理引擎）
+                └── Host（虚拟主机）
+                      └── Context（Web 应用，例如 backend.war）
+
+  本文件位于 CATALINA_BASE/conf/server.xml。
+  我们使用外置 Tomcat 部署 WAR 包，并通过 Nginx 反向代理访问。
+  =============================================================================
+-->
+
+<!--
+  Server 根元素：代表整个 Tomcat 实例。
+  port="8005"：关闭 Tomcat 的端口，通过 telnet 127.0.0.1 8005 发送 SHUTDOWN 可关闭。
+  shutdown="SHUTDOWN"：关闭命令字符串。
+-->
+<Server port="8005" shutdown="SHUTDOWN">
+
+    <!--
+      Listener：生命周期监听器。
+      VersionLoggerListener：启动时打印 Tomcat、JVM、操作系统版本信息，方便排查问题。
+    -->
+    <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+
+    <!-- APR/native 库监听器，用于优化 SSL/TLS 性能。如果系统没有安装 APR，会自动回退到 NIO。 -->
+    <Listener className="org.apache.catalina.core.AprLifecycleListener" SSLEngine="on" />
+
+    <!-- 防止 JRE 内存泄漏 -->
+    <Listener className="org.apache.catalina.core.JreMemoryLeakPreventionListener" />
+
+    <!-- 全局 MBean 资源管理 -->
+    <Listener className="org.apache.catalina.mbeans.GlobalResourcesLifecycleListener" />
+
+    <!-- 防止 ThreadLocal 内存泄漏 -->
+    <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+
+    <!--
+      全局命名资源：这里配置了一个内存用户数据库，
+      用于 Manager 等管理界面的用户认证（本示例未启用管理界面，可忽略）。
+    -->
+    <GlobalNamingResources>
+        <Resource name="UserDatabase" auth="Container"
+                  type="org.apache.catalina.UserDatabase"
+                  description="User database that can be updated and saved"
+                  factory="org.apache.catalina.users.MemoryUserDatabaseFactory"
+                  pathname="conf/tomcat-users.xml" />
+    </GlobalNamingResources>
+
+    <!--
+      Service：一个或多个 Connector 共享同一个 Engine。
+      名称 Catalina 是默认名，可自定义。
+    -->
+    <Service name="Catalina">
+
+        <!--
+          ===================================================================
+          Connector：网络连接器，负责监听端口、接收 HTTP/AJP 请求。
+          ===================================================================
+          本示例使用 HTTP/1.1 Connector，监听 8080 端口。
+          Nginx 会把 /api 请求反向代理到这个端口。
+        -->
+        <Connector port="8080"
+                   protocol="HTTP/1.1"
+                   connectionTimeout="20000"
+                   redirectPort="8443"
+                   maxParameterCount="1000"
+                   URIEncoding="UTF-8" />
+
+        <!--
+          ===================================================================
+          Engine：请求处理引擎。
+          ===================================================================
+          name：引擎名称。
+          defaultHost：当请求无法匹配到任何 Host 时，使用 defaultHost 处理。
+        -->
+        <Engine name="Catalina" defaultHost="localhost">
+
+            <!--
+              Realm：安全域，用于用户认证。
+              LockOutRealm 包装 UserDatabaseRealm，防止暴力破解密码。
+            -->
+            <Realm className="org.apache.catalina.realm.LockOutRealm">
+                <Realm className="org.apache.catalina.realm.UserDatabaseRealm"
+                       resourceName="UserDatabase" />
+            </Realm>
+
+            <!--
+              =================================================================
+              Host：虚拟主机，相当于一个“网站”。
+              =================================================================
+              name="localhost"：主机名，Nginx 反向代理时 Host 头保持 localhost。
+              appBase="webapps"：应用部署的根目录，相对于 CATALINA_BASE。
+                                 这里指向 /home/charles/code/nginxdemo/tomcat/webapps。
+              unpackWARs="true"：自动把 WAR 包解压成目录。
+              autoDeploy="true"：Tomcat 运行期间，如果 webapps 下放入新的 WAR，
+                                 会自动部署（热部署）。
+            -->
+            <Host name="localhost"
+                  appBase="webapps"
+                  unpackWARs="true"
+                  autoDeploy="true">
+
+                <!--
+                  AccessLogValve：访问日志阀门。
+                  每个进入 Host 的请求都会记录到 logs/localhost_access_log.日期.txt。
+                -->
+                <Valve className="org.apache.catalina.valves.AccessLogValve"
+                       directory="logs"
+                       prefix="localhost_access_log"
+                       suffix=".txt"
+                       pattern="%h %l %u %t &quot;%r&quot; %s %b %D" />
+
+                <!--
+                  Context：显式声明一个 Web 应用（可选）。
+                  如果 autoDeploy="true"，Tomcat 会自动根据 WAR 名创建 Context，
+                  所以通常不需要手动写 <Context>。
+
+                  示例（当前注释掉）：把 WAR 包映射到根路径 /
+                  <Context path="" docBase="backend" reloadable="true" />
+                -->
+            </Host>
+        </Engine>
+    </Service>
+</Server>

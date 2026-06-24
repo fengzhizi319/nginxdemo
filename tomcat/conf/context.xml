@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  =============================================================================
+  Tomcat 上下文配置文件 context.xml
+  =============================================================================
+  context.xml 定义了 Web 应用的默认上下文配置，会被所有部署的应用继承。
+
+  学习点：
+  1. 每个 Web 应用对应一个 Context，包含 Servlet 上下文、会话、资源等配置。
+  2. 这里配置的是全局默认值，也可以为单个应用在 META-INF/context.xml 中单独配置。
+  3. WatchedResource：当这些文件发生变化时，Tomcat 会自动重新加载应用。
+     开发环境很方便，但生产环境频繁 reload 会影响性能。
+  =============================================================================
+-->
+
+<!--
+  <Context> 元素：定义 Web 应用的上下文。
+  常见属性（当前使用默认）：
+  - path：应用的访问路径，例如 /backend。
+  - docBase：应用的实际位置，可以是 WAR 包或解压后的目录。
+  - reloadable：是否监控类文件变化并自动重载（开发用）。
+-->
+<Context>
+
+    <!--
+      监控资源列表。当这些文件被修改时，Tomcat 会自动重新加载对应应用。
+      WEB-INF/web.xml：应用的部署描述符。
+      WEB-INF/tomcat-web.xml：Tomcat 特有的 web 配置。
+      ${catalina.base}/conf/web.xml：全局 web.xml。
+    -->
+    <WatchedResource>WEB-INF/web.xml</WatchedResource>
+    <WatchedResource>WEB-INF/tomcat-web.xml</WatchedResource>
+    <WatchedResource>${catalina.base}/conf/web.xml</WatchedResource>
+
+    <!--
+      取消下面注释可开启会话持久化：Tomcat 重启后会恢复用户的 Session。
+      学习用通常不需要开启。
+    -->
+    <!--
+    <Manager pathname="SESSIONS.ser" />
+    -->
+</Context>
