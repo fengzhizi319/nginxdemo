@@ -586,3 +586,720 @@ location /api {
 - 生产追求**性能** → 用 Nginx 代理
 
 这就是为什么会有两套配置的原因！🎯
+
+
+## 浏览器的跨域阻止机制（CORS - Cross-Origin Resource Sharing）
+
+### 同源策略（Same-Origin Policy）
+
+浏览器有一个核心安全机制叫**同源策略**，要求：
+
+- **协议**相同
+- **域名**相同
+- **端口**相同
+
+三者必须**完全一致**才算"同源"，否则就是"跨域"。
+
+### 🎯 项目中的跨域场景
+
+#### 开发环境（没有 proxy 时会怎样？）
+
+```javascript
+// 前端运行在: http://localhost:8000
+// 后端运行在: http://localhost:8081
+
+// 前端代码发起请求
+fetch('http://localhost:8081/backend/api/users')
+```
+
+
+**浏览器会阻止！** ❌
+
+---
+
+### 🔍 为什么会被阻止？
+
+#### 同源检查
+
+| 维度 | 前端页面    | 后端 API    | 是否相同？ |
+| ---- | ----------- | ----------- | ---------- |
+| 协议 | `http`      | `http`      | ✅ 相同     |
+| 域名 | `localhost` | `localhost` | ✅ 相同     |
+| 端口 | `8000`      | `8081`      | ❌ **不同** |
+
+**结论**: 端口不同 → **跨域** → 浏览器阻止！
+
+---
+
+### 🛡️ 浏览器的拦截过程
+
+#### 1. 简单请求（Simple Request）
+
+```javascript
+// 前端发起 GET 请求
+fetch('/api/users')  // 实际指向 http://localhost:8081/backend/api/users
+```
+
+
+**浏览器行为：**
+
+```
+1. 发送请求到后端
+2. 后端返回数据
+3. 浏览器检查响应头是否有 CORS 许可
+4. 如果没有 → 阻止前端代码获取数据 ❌
+5. 控制台报错：
+   "Access to fetch at 'http://localhost:8081/...' 
+    from origin 'http://localhost:8000' has been blocked by CORS policy"
+```
+
+
+**注意**: 请求**实际上已经到达后端**了，但浏览器不让前端拿到响应！
+
+---
+
+#### 2. 预检请求（Preflight Request）
+
+对于复杂请求（POST with JSON、PUT、DELETE 等），浏览器会先发一个"试探"：
+
+```javascript
+// 前端发起 POST 请求
+fetch('/api/users', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: '张三' })
+})
+```
+
+
+**浏览器行为：**
+
+```
+步骤1: 发送 OPTIONS 预检请求
+  → OPTIONS /api/users HTTP/1.1
+  → Origin: http://localhost:8000
+  → Access-Control-Request-Method: POST
+  → Access-Control-Request-Headers: Content-Type
+
+步骤2: 等待后端响应
+  ← 如果后端返回正确的 CORS 头:
+     Access-Control-Allow-Origin: http://localhost:8000
+     Access-Control-Allow-Methods: POST, GET, OPTIONS
+     Access-Control-Allow-Headers: Content-Type
+  
+步骤3: 判断是否允许
+  ✅ 允许 → 发送真正的 POST 请求
+  ❌ 不允许 → 直接阻止，不发送 POST
+```
+
+
+---
+
+### ✅ 解决方案对比
+
+#### 方案1: 前端 Proxy（本项目采用）
+
+```typescript
+// frontend/.umirc.ts
+proxy: {
+  '/api': {
+    target: 'http://127.0.0.1:8081/backend',
+    changeOrigin: true,
+  }
+}
+```
+
+
+**工作原理：**
+
+```
+浏览器认为自己在访问同源服务器:
+  fetch('/api/users')
+    ↓
+  发送到: http://localhost:8000/api/users (同源，不会跨域)
+    ↓
+  Umi Dev Server 拦截并转发:
+    http://localhost:8000/api/users 
+    → http://localhost:8081/backend/api/users
+    ↓
+  后端返回数据
+    ↓
+  Dev Server 转发回前端
+    ↓
+  浏览器收到响应 ✅ (因为浏览器认为是同源请求)
+```
+
+
+**优点：**
+
+- ✅ 前端代码无需修改
+- ✅ 不需要后端配置 CORS
+- ✅ 对浏览器完全透明
+
+---
+
+#### 方案2: 后端配置 CORS
+
+```java
+// Spring Boot 后端添加 CORS 配置
+@RestController
+@CrossOrigin(origins = "http://localhost:8000")  // 允许前端域名
+public class UserController {
+    @GetMapping("/api/users")
+    public List<User> getUsers() {
+        return userService.findAll();
+    }
+}
+```
+
+
+或者全局配置：
+
+```java
+@Configuration
+public class CorsConfig implements WebMvcConfigurer {
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+                .allowedOrigins("http://localhost:8000")
+                .allowedMethods("GET", "POST", "PUT", "DELETE")
+                .allowedHeaders("*");
+    }
+}
+```
+
+
+**工作原理：**
+
+```
+浏览器发送请求:
+  fetch('http://localhost:8081/backend/api/users')
+    ↓
+  后端返回时带上 CORS 头:
+    Access-Control-Allow-Origin: http://localhost:8000
+    ↓
+  浏览器检查通过 ✅
+  前端拿到数据
+```
+
+
+---
+
+#### 方案3: Nginx 反向代理（生产环境）
+
+```nginx
+# nginx/conf.d/default.conf
+server {
+  listen 8088;
+  
+  # 前端和后端都通过同一个端口访问
+  location / {
+    root /usr/share/nginx/html;
+  }
+  
+  location /api {
+    proxy_pass http://127.0.0.1:8080/backend;
+    # 添加 CORS 头（如果需要）
+    add_header Access-Control-Allow-Origin *;
+  }
+}
+```
+
+
+**工作原理：**
+
+```
+用户访问: http://example.com:8088
+  ↓
+前端页面加载自: http://example.com:8088/index.html
+  ↓
+前端请求: fetch('/api/users')
+  → 实际访问: http://example.com:8088/api/users
+  ↓
+Nginx 内部转发到: http://127.0.0.1:8080/backend/api/users
+  ↓
+对于浏览器来说，始终是同源请求 ✅
+```
+
+
+---
+
+### 📊 三种方案对比
+
+| 方案           | 适用场景  | 优点               | 缺点         |
+| -------------- | --------- | ------------------ | ------------ |
+| **前端 Proxy** | 开发环境  | 配置简单，不改代码 | 仅开发有效   |
+| **后端 CORS**  | 开发+生产 | 前后端分离部署     | 需要后端配合 |
+| **Nginx 代理** | 生产环境  | 性能最好，统一入口 | 需要额外配置 |
+
+---
+
+### 🧪 实验验证
+
+你可以做个实验看看跨域错误：
+
+```bash
+# 1. 临时注释掉 proxy 配置
+# frontend/.umirc.ts
+/*
+proxy: {
+  '/api': {
+    target: 'http://127.0.0.1:8081/backend',
+  }
+}
+*/
+
+# 2. 启动开发服务
+./scripts/run-dev.sh
+
+# 3. 打开浏览器控制台 (F12)
+# 你会看到类似这样的错误:
+# Access to fetch at 'http://localhost:8081/backend/api/users' 
+# from origin 'http://localhost:8000' has been blocked by CORS policy: 
+# No 'Access-Control-Allow-Origin' header is present on the requested resource.
+```
+
+
+---
+
+### 💡 核心总结
+
+1. **跨域是浏览器的安全机制**，不是服务器的限制
+2. **请求可能已经到达后端**，但浏览器不让前端拿响应
+3. **Proxy 的本质**是让浏览器认为自己在访问同源服务器
+4. **生产环境通常用 Nginx**，既解决跨域又提升性能
+
+这就是为什么本项目在开发时用前端 proxy，生产时用 Nginx 代理的原因！🎯
+## 生产环境的跨域问题
+### 🎯 关键区别：浏览器眼中的"源"
+#### 开发环境（会跨域）❌
+
+```
+前端页面地址: http://localhost:8000/index.html
+后端 API 地址: http://localhost:8081/backend/api/users
+
+浏览器检查:
+- 前端端口: 8000
+- 后端端口: 8081
+- ❌ 端口不同 → 跨域！
+```
+
+
+---
+
+#### 生产环境（不会跨域）✅
+
+```nginx
+# Nginx 监听 8088 端口
+server {
+    listen 8088;
+    
+    # 前端静态文件
+    location / {
+        root /home/charles/code/nginxdemo/frontend/dist;
+    }
+    
+    # 后端 API 代理
+    location /api/ {
+        proxy_pass http://backend_servers/backend/api/;
+    }
+}
+```
+
+
+**用户访问流程：**
+```
+1. 用户在浏览器输入: http://example.com:8088
+   ↓
+2. 加载前端页面: http://example.com:8088/index.html
+   （Nginx 返回 frontend/dist/index.html）
+   ↓
+3. 前端发起请求: fetch('/api/users')
+   实际访问: http://example.com:8088/api/users
+   ↓
+4. Nginx 内部转发到: http://127.0.0.1:8080/backend/api/users
+   （Tomcat 处理并返回结果）
+   ↓
+5. Nginx 把响应返回给浏览器
+```
+
+
+**浏览器检查：**
+```
+- 页面来源: http://example.com:8088
+- API 地址: http://example.com:8088/api/users
+- ✅ 协议、域名、端口完全相同 → 同源！
+```
+
+
+---
+
+### 🔑 核心原理
+
+#### 对浏览器来说，它只知道 Nginx
+
+```javascript
+// 前端代码 (api.ts)
+const BASE_URL = '/api';  // 相对路径
+
+fetch('/api/users')
+// 浏览器实际请求的是: http://当前域名:8088/api/users
+// 浏览器根本不知道后面有 Tomcat！
+```
+
+
+**关键点：**
+1. **前端页面**从 `http://example.com:8088` 加载
+2. **API 请求**也发送到 `http://example.com:8088`
+3. 对于浏览器，这是**同一个源**（同源）
+4. Nginx 内部的转发逻辑，浏览器**完全不可见**
+
+---
+
+### 📊 对比总结
+
+| 维度 | 开发环境（无 proxy） | 生产环境（Nginx） |
+|------|-------------------|------------------|
+| 前端地址 | `http://localhost:8000` | `http://example.com:8088` |
+| API 地址 | `http://localhost:8081/backend/api` | `http://example.com:8088/api` |
+| 浏览器视角 | ❌ 不同端口 → 跨域 | ✅ 同一端口 → 同源 |
+| 是否需要 CORS | 需要（proxy 或后端配置） | 不需要 |
+| 后端是否暴露 | 直接暴露给浏览器 | 隐藏在 Nginx 后面 |
+
+---
+
+### 🏗️ 架构示意
+
+#### 开发环境（跨域问题）
+```
+┌─────────────┐
+│   Browser   │  localhost:8000 (前端)
+│             │  localhost:8081 (后端) ← 不同端口！
+└─────────────┘
+     ↑    ↑
+     │    └── 直接访问后端 → 跨域 ❌
+     └── Dev Server (proxy 解决)
+```
+
+
+#### 生产环境（同源）
+```
+┌─────────────┐
+│   Browser   │  example.com:8088 (唯一入口)
+└──────┬──────┘
+       │
+       ↓
+┌─────────────┐
+│    Nginx    │  :8088 统一监听
+│             │
+│  /          │ → 返回前端静态文件
+│  /api/*     │ → 反向代理到 Tomcat
+└──────┬──────┘
+       │
+       ↓
+┌─────────────┐
+│   Tomcat    │  :8080 (后端，不对外暴露)
+└─────────────┘
+```
+
+
+**重点：**
+- 浏览器只看到 **一个服务器** (`example.com:8088`)
+- 所有的路由和转发都在 **Nginx 内部**完成
+- 后端的真实地址对浏览器是**透明的**
+
+---
+
+### 💡 类比理解
+
+想象你去一家餐厅：
+
+#### 开发环境 = 分开点餐
+```
+你(浏览器):
+- 在前台(8000)点主食
+- 要去后厨(8081)拿饮料
+→ 前台说："你不能直接进后厨！"（跨域阻止）
+```
+
+
+#### 生产环境 = 统一服务
+```
+你(浏览器):
+- 在前台(8088)点所有东西
+- 服务员内部协调厨房和吧台
+→ 你拿到所有东西，不用关心从哪里来
+→ 对你来说，只有一个服务窗口（同源）✅
+```
+
+
+---
+
+### 🧪 验证方法
+
+你可以打开浏览器的开发者工具验证：
+
+```javascript
+// 在生产环境打开控制台
+console.log(window.location.origin);  
+// 输出: "http://example.com:8088"
+
+// 发起请求
+fetch('/api/users').then(r => r.json()).then(console.log);
+// 请求 URL: http://example.com:8088/api/users
+// ✅ 同源，不会有跨域错误
+```
+
+
+---
+
+### 总结
+
+**生产环境不跨域的原因：**
+1. ✅ 前端和后端都通过 **同一个 Nginx 端口**访问
+2. ✅ 浏览器认为自己在访问**同一个服务器**
+3. ✅ Nginx 的内部转发对浏览器**透明**
+4. ✅ 本质上就是**同源请求**，不是跨域
+
+这就是为什么生产环境用 Nginx 既解决了跨域问题，又提升了性能！🎯
+好问题！让我解释 Nginx 在生产环境中的运行位置和可见性。
+
+## 🖥️ Nginx 在生产环境中的运行位置和可见性
+
+### Nginx 运行在**服务器端**（不是浏览器）
+
+```
+┌──────────────────────────────────────────────┐
+│              你的电脑（客户端）                 │
+│                                              │
+│  ┌──────────┐                                │
+│  │ 浏览器    │  Chrome/Firefox/Safari         │
+│  └────┬─────┘                                │
+└───────┼──────────────────────────────────────┘
+        │
+        │ HTTP 请求 (TCP/IP 网络)
+        │
+        ↓
+┌──────────────────────────────────────────────┐
+│              服务器（远程机器）                  │
+│                                              │
+│  ┌──────────┐    ┌──────────┐                │
+│  │  Nginx   │───→│  Tomcat  │                │
+│  │  :8088   │    │  :8080   │                │
+│  └──────────┘    └──────────┘                │
+│                                              │
+└──────────────────────────────────────────────┘
+```
+
+
+---
+
+### 🔍 "浏览器看不见"是什么意思？
+
+这里的"看不见"是指：
+
+#### ✅ **浏览器能看到 Nginx 的响应**
+```javascript
+// 浏览器发起请求
+fetch('http://example.com:8088/api/users')
+  .then(res => res.json())
+  .then(data => console.log(data));  // ✅ 能收到数据
+
+// 这个数据就是 Nginx 返回的
+```
+
+
+#### ❌ **浏览器看不到 Nginx 的内部逻辑**
+```
+浏览器知道的：
+- 我发送了 GET /api/users
+- 我收到了 JSON 数据
+- 服务器地址是 example.com:8088
+
+浏览器不知道的：
+- ❓ Nginx 把请求转发给了谁
+- ❓ 后端有几个 Tomcat 实例
+- ❓ 真实的后端地址是什么
+- ❓ Nginx 内部的路由规则
+```
+
+
+---
+
+### 🌐 实际部署场景
+#### 场景1：本地学习（本项目）
+
+```bash
+# Nginx 作为系统服务运行
+sudo systemctl start nginx
+
+# 查看 Nginx 状态
+sudo systemctl status nginx
+```
+
+
+**Nginx 运行在：**
+- 你的 WSL (Ubuntu) 系统中
+- 作为后台守护进程（daemon）
+- 监听 8088 端口
+
+---
+
+### 场景2：真实生产环境
+
+```
+用户浏览器                    云服务器 (如阿里云/AWS)
+┌──────────┐                 ┌─────────────────────┐
+│          │   Internet      │                     │
+│ Chrome   │ ←────────────→ │  Nginx (:80)        │
+│          │   HTTPS         │    ↓                │
+└──────────┘                 │  Tomcat (:8080)     │
+                             └─────────────────────┘
+```
+
+
+**Nginx 运行在：**
+- 云服务器的 Linux 系统上
+- 通过 systemd 管理 (`systemctl start nginx`)
+- 可能还有负载均衡器在前面
+
+---
+
+### 🔬 浏览器能看到什么 vs 看不到什么
+
+#### ✅ 浏览器能看到的（HTTP 层面）
+
+打开浏览器开发者工具（F12）→ Network 标签：
+
+```
+Request URL: http://example.com:8088/api/users
+Request Method: GET
+Status Code: 200 OK
+Remote Address: example.com:8088
+
+Response Headers:
+  Content-Type: application/json
+  Server: nginx/1.24.0  ← 可以看到是 Nginx
+  Date: Thu, 25 Jun 2026 10:00:00 GMT
+  
+Response Body:
+  [{"id":1,"name":"张三"},{"id":2,"name":"李四"}]
+```
+
+
+**这些信息是可见的：**
+- 请求的 URL
+- 响应状态码
+- 响应头（包括 `Server: nginx`）
+- 响应数据
+
+---
+
+#### ❌ 浏览器看不到的（服务器内部）
+
+```nginx
+# Nginx 配置文件（浏览器完全不知道）
+location /api/ {
+    proxy_pass http://backend_servers/backend/api/;  # ← 隐藏！
+    
+    # 这些配置浏览器也看不到
+    proxy_set_header Host $host;
+    proxy_connect_timeout 30;
+}
+
+upstream backend_servers {
+    server 127.0.0.1:8080 weight=1;  # ← 后端真实地址隐藏！
+    server 127.0.0.1:8081 weight=1;  # ← 负载均衡细节隐藏！
+}
+```
+
+
+**这些信息被隐藏：**
+- 后端的真实 IP 和端口
+- 有多少个后端服务器
+- 负载均衡策略
+- 内部转发规则
+- 超时时间等配置
+
+---
+
+### 🎭 类比理解
+
+#### Nginx 就像餐厅的服务员
+
+```
+你(浏览器) → 服务员(Nginx) → 厨房(Tomcat)
+
+你能看到服务员：
+✅ 穿着制服（Server: nginx 响应头）
+✅ 给你送餐（返回响应数据）
+✅ 站在前台（监听 8088 端口）
+
+你看不到：
+❌ 厨房里有几个厨师（后端实例数量）
+❌ 厨师的真实姓名（后端服务器 IP）
+❌ 厨房的内部布局（Nginx 配置）
+❌ 点餐系统的操作方式（proxy_pass 规则）
+```
+
+
+---
+
+### 🛡️ 为什么这种"看不见"很重要？
+
+#### 1. **安全性**
+```
+如果浏览器能看到后端地址：
+fetch('http://example.com:8088/api/users')
+  ↓
+攻击者可以直接访问：
+http://192.168.1.100:8080/backend/api/users  ← 绕过安全控制！
+```
+
+
+#### 2. **架构灵活性**
+```nginx
+# 可以随时修改后端架构，前端无感知
+upstream backend_servers {
+    # 今天：1 台服务器
+    server 127.0.0.1:8080;
+    
+    # 明天：改成 3 台，前端代码不用改
+    server 127.0.0.1:8080;
+    server 127.0.0.1:8081;
+    server 127.0.0.1:8082;
+}
+```
+
+
+#### 3. **统一入口**
+```
+对用户来说：
+- 只需要知道一个域名：example.com:8088
+- 不需要关心后端有几个服务
+- 不需要处理跨域问题
+```
+
+
+---
+
+### 📊 总结对比
+
+| 维度 | 浏览器的视角 | 实际发生的事 |
+|------|------------|------------|
+| **Nginx 位置** | "一个远程服务器" | 运行在你的 WSL/云服务器上 |
+| **请求目标** | `http://example.com:8088/api/users` | Nginx 接收并转发 |
+| **后端地址** | 不知道（透明） | `http://127.0.0.1:8080/backend/api/users` |
+| **跨域问题** | 同源请求 | Nginx 统一了入口 |
+| **架构细节** | 看不到 | 可能有多个 Tomcat、数据库等 |
+
+---
+
+### 💡 核心要点
+
+1. **Nginx 运行在服务器端**（WSL、云服务器等）
+2. **"看不见"指的是内部逻辑对浏览器透明**
+3. **浏览器能看到 Nginx 的响应，但不知道背后的架构**
+4. **这种隔离提供了安全性和灵活性**
+
+就像一个黑盒：你输入请求，得到响应，但不知道里面发生了什么。这就是反向代理的价值！🎯
