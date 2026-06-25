@@ -15,8 +15,18 @@ export default defineConfig({
   // 应用名称
   title: 'Nginx + Tomcat 学习示例',
 
-  // 路由基础路径
-  base: '/',
+  /**
+    // 路由基础路径
+    // 场景1: 部署在域名根路径
+    base: '/'
+  // URL: https://example.com/user → 正常访问
+
+  // 场景2: 部署在子目录
+    base: '/myapp/'
+  // URL: https://example.com/myapp/user → 正常访问
+  // URL: https://example.com/user → 404
+    base: '/',
+  **/
 
   // 静态资源公共路径
   publicPath: '/',
@@ -24,10 +34,22 @@ export default defineConfig({
   // 使用浏览器路由（History 模式）
   history: { type: 'browser' },
 
+  // 约定式路由排除测试文件，避免 .test.tsx 被当作页面路由打包
+  conventionRoutes: {
+    exclude: [/.*\.test\.[tj]sx?$/],
+  },
+
+  // JS 压缩目标：react 18 的部分依赖使用了 BigInt，需要将目标环境从默认的 es2015 提升到 es2020
+  jsMinifierOptions: {
+    target: 'es2020',
+  },
+
   // 开发时代理：把 /api 开头的请求转发到 Tomcat 上的后端
   proxy: {
     '/api': {
-      target: 'http://127.0.0.1:8080/backend',
+      // 开发模式下后端使用嵌入 Tomcat，端口为 8081（见 backend/src/main/resources/application.yml）
+      // 如果使用外置 Tomcat（scripts/start-local.sh），请将 target 改为 'http://127.0.0.1:8080/backend'
+      target: 'http://127.0.0.1:8081/backend',
       changeOrigin: true,
       // pathRewrite 把 /api 重写为空，因为后端接口前缀已经是 /api
       pathRewrite: { '^/api': '/api' },

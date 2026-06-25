@@ -7,8 +7,12 @@
 #   ./scripts/build.sh
 #
 # 本脚本会完成：
-# 1. 后端：使用 Maven 打成 WAR 包，并复制到 tomcat/webapps。
+# 1. 后端：使用 Maven 打成 WAR 包（默认运行测试），并复制到 tomcat/webapps。
 # 2. 前端：安装依赖并使用 Umi 构建，产物放到 frontend/dist。
+#
+# 环境变量：
+#   SKIP_TESTS=true   跳过前后端单元测试，加速构建
+#   示例：SKIP_TESTS=true ./scripts/build.sh
 # =============================================================================
 
 # 启用严格模式：遇到错误立即退出，未定义变量报错
@@ -29,8 +33,13 @@ echo ""
 echo "【1/3】构建后端 Spring Boot WAR 包..."
 cd "$PROJECT_DIR/backend"
 
-# 执行 Maven 打包，跳过测试以加快构建
-mvn clean package -DskipTests
+if [ "${SKIP_TESTS:-false}" = "true" ]; then
+    echo "SKIP_TESTS=true，跳过 Maven 测试..."
+    mvn clean package -DskipTests
+else
+    echo "运行 Maven 测试并打包..."
+    mvn clean package
+fi
 
 # 把生成的 WAR 包复制到 Tomcat 的 webapps 目录
 # WAR 包名是 backend.war，Tomcat 会自动部署为 /backend 上下文路径

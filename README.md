@@ -26,14 +26,17 @@ nginxdemo/
 │   ├── 06-Nginx配置详解.md
 │   ├── 07-Tomcat部署详解.md
 │   ├── 08-负载均衡演示.md
-│   └── 09-常见问题排查.md
+│   ├── 09-常见问题排查.md
+│   └── 10-测试说明.md       # 前后端单元测试与开发联调
 ├── frontend/                # UmiJS 4 React 前端
 ├── backend/                 # Spring Boot 3 + Java 17 后端
 ├── nginx/                   # Nginx 配置参考（系统 Nginx 使用 /etc/nginx 下的配置）
 ├── tomcat/                  # Tomcat 配置与本地二进制
 │   └── apache-tomcat-10.1.56/
 ├── scripts/                 # 一键脚本
-│   ├── build.sh             # 构建前后端
+│   ├── build.sh             # 构建前后端（默认运行测试）
+│   ├── test.sh              # 运行前后端单元测试
+│   ├── run-dev.sh           # 前后端同时启动（开发模式）
 │   ├── start-local.sh       # 启动 Nginx + Tomcat
 │   └── stop-local.sh        # 停止 Nginx + Tomcat
 └── README.md
@@ -83,6 +86,55 @@ cd /home/charles/code/nginxdemo
 ./scripts/stop-local.sh
 ```
 
+## 测试
+
+本项目为前后端都补充了详细的单元测试，并支持一键运行。
+
+### 一键运行全部测试
+
+```bash
+./scripts/test.sh
+```
+
+脚本会先运行后端 Maven 测试，再运行前端 Vitest 测试，最后输出汇总结果。
+
+### 分别运行
+
+**后端测试：**
+
+```bash
+cd backend
+mvn test
+```
+
+**前端测试：**
+
+```bash
+cd frontend
+pnpm install
+pnpm run test:run
+```
+
+更多细节请阅读 [docs/10-测试说明.md](docs/10-测试说明.md)。
+
+## 前后端同时运行（开发模式）
+
+开发调试时可使用 `run-dev.sh` 同时启动前后端：
+
+```bash
+./scripts/run-dev.sh
+```
+
+启动后访问：
+
+- 前端页面：<http://127.0.0.1:8000>
+- 用户列表 API（经 Umi 代理）：<http://127.0.0.1:8000/api/users>
+- 后端直连：<http://127.0.0.1:8081/backend/api/users>
+
+按 `Ctrl+C` 可同时停止前端 dev server 和后端 Spring Boot。
+
+更多手动分步运行方式请阅读 [docs/10-测试说明.md](docs/10-测试说明.md)。
+
 ## 推荐阅读顺序
 
 | 顺序 | 文档 | 内容 |
@@ -96,6 +148,7 @@ cd /home/charles/code/nginxdemo
 | 7 | [07-Tomcat部署详解.md](docs/07-Tomcat部署详解.md) | WAR 部署、CATALINA_BASE |
 | 8 | [08-负载均衡演示.md](docs/08-负载均衡演示.md) | 多实例、weight、轮询 |
 | 9 | [09-常见问题排查.md](docs/09-常见问题排查.md) | 404/502、端口冲突、跨域 |
+| 10 | [10-测试说明.md](docs/10-测试说明.md) | 前后端单元测试与开发联调 |
 
 ## 架构图
 

@@ -11,14 +11,17 @@ frontend/node_modules/
 frontend/dist/
 frontend/.umi/
 frontend/.umi-production/
+frontend/src/.umi/
+frontend/src/.umi-production/
 frontend/package-lock.json
 frontend/pnpm-lock.yaml
 frontend/yarn.lock
 
-# Nginx 日志、临时文件和二进制（如果希望二进制不被提交，可取消下面注释）
+# Nginx 日志、临时文件和二进制
+# 由于已使用系统 Nginx，便携版二进制不再提交
 nginx/logs/
 nginx/tmp/
-# nginx/pkg/
+nginx/pkg/
 
 # Tomcat 日志、临时文件和运行数据
 tomcat/logs/
@@ -27,6 +30,11 @@ tomcat/work/
 tomcat/webapps/backend/
 # 保留 WAR 包示例，如果不需要可取消下面注释
 # tomcat/webapps/backend.war
+
+# 开发脚本运行时生成的日志
+backend-dev.log
+frontend-dev.log
+run-dev.log
 
 # IDE
 .idea/
