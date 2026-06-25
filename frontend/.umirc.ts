@@ -25,13 +25,40 @@ export default defineConfig({
     base: '/myapp/'
   // URL: https://example.com/myapp/user → 正常访问
   // URL: https://example.com/user → 404
-    base: '/',
   **/
+  base: '/',
 
+  /**
+   * // 场景1: 从根路径加载资源
+   * publicPath: '/'
+   * // HTML 中生成: <script src="/umi.js">
+   *
+   * // 场景2: 从 CDN 加载资源
+   * publicPath: 'https://cdn.example.com/'
+   * // HTML 中生成: <script src="https://cdn.example.com/umi.js">
+   *
+   * // 场景3: 部署在子目录
+   * publicPath: '/myapp/'
+   * // HTML 中生成: <script src="/myapp/umi.js">
+   */
   // 静态资源公共路径
   publicPath: '/',
 
   // 使用浏览器路由（History 模式）
+  /**
+   * // 模式1: browser (HTML5 History)
+   * history: { type: 'browser' }
+   * // URL: https://example.com/user (干净,无 #)
+   * // ⚠️ 需要 Nginx 配置:
+   * // location / {
+   * //   try_files $uri $uri/ /index.html;  // 刷新时 fallback
+   * // }
+   *
+   * // 模式2: hash (带 # 号)
+   * history: { type: 'hash' }
+   * // URL: https://example.com/#/user (不需要特殊配置)
+   * // ✅ 刷新不会 404,但 URL 不美观
+   */
   history: { type: 'browser' },
 
   // 约定式路由排除测试文件，避免 .test.tsx 被当作页面路由打包
@@ -45,6 +72,44 @@ export default defineConfig({
   },
 
   // 开发时代理：把 /api 开头的请求转发到 Tomcat 上的后端
+  /**
+   * 前端配置的 proxy（仅开发时使用）
+   *
+   * 开发环境流程：
+   * npm run dev (启动 Umi 开发服务器，端口 8000)
+   *   ↓
+   * 浏览器访问 http://localhost:8000
+   *   ↓
+   * 前端代码请求 fetch('/api/users')
+   *   ↓
+   * Umi 开发服务器拦截并转发到 http://127.0.0.1:8081/backend/api/users
+   *   ↓
+   * 后端返回数据
+   *
+   * 🔧 开发模式 (./scripts/run-dev.sh)
+   * # 启动流程：
+   * 1. 启动 Spring Boot (内嵌 Tomcat) → localhost:8081
+   * 2. 启动 Umi Dev Server → localhost:8000
+   * 3. 前端 proxy 生效：/api → http://localhost:8081/backend/api
+   * 此时：
+   * ❌ 不使用 Nginx
+   * ✅ 使用前端配置的 proxy
+   * 📝 代码修改自动热更新
+   *
+   * 🚀 生产模式 (./scripts/start-local.sh)
+   * # 启动流程：
+   * 1. 构建前端 → frontend/dist/ (静态文件)
+   * 2. 打包后端 → backend.war → tomcat/webapps/
+   * 3. 启动系统 Nginx → 监听 8088
+   * 4. 启动外置 Tomcat → 监听 8080
+   * 5. Nginx 配置生效：
+   *    - / → 返回 frontend/dist/index.html
+   *    - /api → 代理到 http://localhost:8080/backend/api
+   *    此时：
+   * ✅ 使用 Nginx 反向代理
+   * ❌ 前端 proxy 不生效（已打包成静态文件）
+   * 📦 部署的是编译后的产物
+   */
   proxy: {
     '/api': {
       // 开发模式下后端使用嵌入 Tomcat，端口为 8081（见 backend/src/main/resources/application.yml）
