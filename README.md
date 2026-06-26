@@ -116,7 +116,11 @@ pnpm run test:run
 ```
 
 更多细节请阅读 [docs/10-测试说明.md](docs/10-测试说明.md)。
+**只前端运行：**
 
+```bash
+cd frontend && npm run dev
+```
 ## 前后端同时运行（开发模式）
 
 开发调试时可使用 `run-dev.sh` 同时启动前后端：

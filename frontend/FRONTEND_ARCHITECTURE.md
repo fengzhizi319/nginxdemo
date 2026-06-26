@@ -8,6 +8,7 @@
 - [开发流程](#开发流程)
 - [构建与部署](#构建与部署)
 - [与 Nginx 的协作](#与-nginx-的协作)
+- [首页个性化设计文档](../docs/11-前端首页个性化设计.md)
 
 ---
 
@@ -39,6 +40,12 @@ frontend/
 │   ├── pages/                # 页面组件（约定式路由）
 │   │   ├── index.tsx         # 首页 → 映射到 /
 │   │   └── user.tsx          # 用户页 → 映射到 /user
+│   ├── components/           # 可复用展示组件
+│   │   └── Home/             # 首页相关组件
+│   │       ├── HeroSection.tsx
+│   │       ├── FeatureList.tsx
+│   │       ├── CtaSection.tsx
+│   │       └── *.module.css  # 各组件对应的 CSS Modules
 │   ├── services/             # API 服务层
 │   │   └── api.ts            # HTTP 请求封装
 │   ├── app.ts                # Umi 运行时配置
@@ -145,13 +152,26 @@ export async function get<T>(path: string): Promise<T> {
 
 **关键代码**：
 ```typescript
-import { Link } from 'umi';
+import HeroSection from '@/components/Home/HeroSection';
+import FeatureList from '@/components/Home/FeatureList';
+import CtaSection from '@/components/Home/CtaSection';
+
+const features = [
+  { icon: '💻', title: '前端', description: 'UmiJS 4 + React，被 Nginx 托管为静态资源。' },
+  { icon: '⚙️', title: '后端', description: 'Spring Boot 3 + Java 17，以 WAR 包形式部署到 Tomcat。' },
+  { icon: '🌐', title: 'Nginx', description: '监听 80 端口，静态文件直接返回，/api 请求转发给 Tomcat。' },
+  { icon: '🐱', title: 'Tomcat', description: '监听 8080 端口，运行 backend.war。' },
+];
 
 export default function HomePage() {
   return (
-    <div>
-      <h1>🎉 Nginx + Tomcat 学习示例</h1>
-      <Link to="/user">点击查看用户列表 →</Link>
+    <div style={{ padding: 24, fontFamily: 'system-ui, sans-serif' }}>
+      <HeroSection
+        title="🎉 Nginx + Tomcat 学习示例"
+        description="这是一个用于学习 Nginx 反向代理、静态资源服务以及 Tomcat 部署的示例项目。"
+      />
+      <FeatureList heading="项目结构" items={features} />
+      <CtaSection heading="开始体验" linkTo="/user" linkText="点击查看用户列表 →" />
     </div>
   );
 }
@@ -160,10 +180,37 @@ export default function HomePage() {
 **学习要点**：
 - Umi 约定式路由：文件名即路由路径
 - `Link` 组件实现 SPA 内部跳转，不触发整页刷新
+- 页面拆分为 `HeroSection`、`FeatureList`、`CtaSection` 三个组件，职责单一、便于维护
+- 组件样式使用 **CSS Modules**（`*.module.css`），类名局部作用域，避免全局污染
+
+**详细设计文档**：参见 `docs/11-前端首页个性化设计.md`
 
 ---
 
-### 5️⃣ `src/pages/user.tsx` - 用户管理页
+### 5️⃣ `src/components/Home/` - 首页展示组件
+
+**作用**：封装首页的可复用展示组件与对应样式，实现视觉分层和个性化设计。
+
+**组件清单**：
+
+| 组件 | 文件 | 说明 |
+|------|------|------|
+| `HeroSection` | `HeroSection.tsx` + `HeroSection.module.css` | 首屏渐变 Hero 区域，展示标题和简介 |
+| `FeatureList` | `FeatureList.tsx` + `FeatureList.module.css` | 项目结构卡片列表，使用 `<ul>` / `<li>` 语义化结构 |
+| `CtaSection` | `CtaSection.tsx` + `CtaSection.module.css` | 行动召唤区域，将 `<Link>` 装扮成胶囊按钮 |
+
+**设计要点**：
+- 每个组件对应一个 `.module.css` 文件，Umi 4 原生支持 CSS Modules。
+- 样式涵盖渐变背景、卡片阴影、悬停上浮、响应式 Grid、入场动画等。
+- 组件 props 保持简单，方便在 `index.tsx` 中组合和扩展。
+
+**学习要点**：
+- CSS Modules 让类名局部化，避免全局样式冲突。
+- 展示组件只负责 UI，数据由页面组件传入，符合 React 单向数据流思想。
+
+---
+
+### 6️⃣ `src/pages/user.tsx` - 用户管理页
 
 **作用**：演示前后端完整交互，包括数据查询和新增。
 
@@ -202,7 +249,7 @@ const [age, setAge] = useState('');                  // 表单年龄
 
 ---
 
-### 6️⃣ `package.json` - 项目配置
+### 7️⃣ `package.json` - 项目配置
 
 **核心脚本**：
 
@@ -222,7 +269,7 @@ const [age, setAge] = useState('');                  // 表单年龄
 
 ---
 
-### 7️⃣ `tsconfig.json` - TypeScript 配置
+### 8️⃣ `tsconfig.json` - TypeScript 配置
 
 **作用**：定义 TypeScript 编译选项（由 Umi 自动生成和管理）。
 
