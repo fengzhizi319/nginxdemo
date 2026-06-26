@@ -1,0 +1,57 @@
+# =============================================================================
+# nginx-win.conf：Windows 平台下的 Nginx 主配置文件
+# =============================================================================
+# 本文件由 scripts/init-windows-env.bat 根据项目实际路径自动生成，
+# 请勿手动修改本文件；如需调整配置，请编辑 nginx/nginx-win.conf.template
+# 并重新运行 init-windows-env.bat。
+#
+# 与 Linux 版本的主要区别：
+# 1. 所有路径使用 Windows 风格（正斜杠）。
+# 2. 移除 use epoll（Windows 默认使用 select）。
+# 3. user 指令在 Windows 上无效，保留仅为兼容。
+# =============================================================================
+
+user nobody;
+worker_processes 1;
+
+# PID 文件放在项目目录内，避免写入系统目录
+pid {{PROJECT_DIR}}/nginx/logs/nginx.pid;
+
+error_log {{PROJECT_DIR}}/nginx/logs/error.log warn;
+
+events {
+    worker_connections 1024;
+    # Windows 下不支持 epoll，使用默认的 select
+    # use select;
+    multi_accept on;
+}
+
+http {
+    include {{PROJECT_DIR}}/nginx/mime.types;
+    default_type application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log {{PROJECT_DIR}}/nginx/logs/access.log main;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+
+    keepalive_timeout 65;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    # 临时文件目录
+    client_body_temp_path {{PROJECT_DIR}}/nginx/tmp/client_body;
+    fastcgi_temp_path     {{PROJECT_DIR}}/nginx/tmp/fastcgi;
+    proxy_temp_path       {{PROJECT_DIR}}/nginx/tmp/proxy;
+    scgi_temp_path        {{PROJECT_DIR}}/nginx/tmp/scgi;
+    uwsgi_temp_path       {{PROJECT_DIR}}/nginx/tmp/uwsgi;
+
+    # 引入站点配置文件
+    include {{PROJECT_DIR}}/nginx/conf.d/default-win.conf;
+}

@@ -27,18 +27,33 @@ nginxdemo/
 │   ├── 07-Tomcat部署详解.md
 │   ├── 08-负载均衡演示.md
 │   ├── 09-常见问题排查.md
-│   └── 10-测试说明.md       # 前后端单元测试与开发联调
+│   ├── 10-测试说明.md       # 前后端单元测试与开发联调
+│   └── 12-Windows平台部署说明.md  # Windows 11 部署指南
 ├── frontend/                # UmiJS 4 React 前端
 ├── backend/                 # Spring Boot 3 + Java 17 后端
 ├── nginx/                   # Nginx 配置参考（系统 Nginx 使用 /etc/nginx 下的配置）
+│   ├── nginx-win.conf.template      # Windows 主配置模板
+│   └── conf.d/
+│       └── default-win.conf.template # Windows 站点配置模板
 ├── tomcat/                  # Tomcat 配置与本地二进制
 │   └── apache-tomcat-10.1.56/
 ├── scripts/                 # 一键脚本
-│   ├── build.sh             # 构建前后端（默认运行测试）
-│   ├── test.sh              # 运行前后端单元测试
-│   ├── run-dev.sh           # 前后端同时启动（开发模式）
-│   ├── start-local.sh       # 启动 Nginx + Tomcat
-│   └── stop-local.sh        # 停止 Nginx + Tomcat
+│   ├── build.sh             # Linux/WSL：构建前后端
+│   ├── test.sh              # Linux/WSL：运行前后端单元测试
+│   ├── run-dev.sh           # Linux/WSL：前后端同时启动（开发模式）
+│   ├── start-local.sh       # Linux/WSL：启动 Nginx + Tomcat
+│   ├── stop-local.sh        # Linux/WSL：停止 Nginx + Tomcat
+│   ├── setup-windows.bat    # Windows：安装便携 JDK/Maven/Nginx
+│   ├── build.bat            # Windows：构建前后端
+│   ├── start-local.bat      # Windows：启动 Nginx + Tomcat
+│   ├── stop-local.bat       # Windows：停止 Nginx + Tomcat
+│   ├── run-dev.bat          # Windows：前后端同时启动（开发模式）
+│   ├── test.bat             # Windows：运行前后端单元测试
+│   └── reload-nginx.bat     # Windows：重新加载 Nginx 配置
+├── tools/                   # Windows 便携工具（不提交到 Git）
+│   ├── jdk/                 # Eclipse Temurin JDK 17
+│   ├── maven/               # Apache Maven
+│   └── nginx/               # Nginx for Windows
 └── README.md
 ```
 
@@ -85,6 +100,63 @@ cd /home/charles/code/nginxdemo
 ```bash
 ./scripts/stop-local.sh
 ```
+
+## Windows 平台快速开始
+
+本项目也支持在 Windows 11 上直接运行，无需 WSL。Windows 版本使用项目内便携工具（`tools/` 目录）和批处理脚本（`.bat`）。
+
+### 1. 环境要求
+
+- Windows 11（64 位）
+- PowerShell 5.1+
+- Node.js 18+ / pnpm（前端构建需要）
+
+### 2. 安装依赖
+
+```bat
+cd e:\Code\demo\nginxdemo
+scripts\setup-windows.bat
+```
+
+这会下载并解压 JDK 17、Maven 3.9.x 和 Nginx for Windows 到 `tools/` 目录。
+
+### 3. 构建
+
+```bat
+scripts\build.bat
+```
+
+### 4. 启动
+
+```bat
+scripts\start-local.bat
+```
+
+### 5. 访问
+
+- 前端页面：<http://127.0.0.1:8090>
+- 用户列表 API（经 Nginx 代理）：<http://127.0.0.1:8090/api/users>
+- 后端直连（不经过 Nginx）：<http://127.0.0.1:8080/backend/api/users>
+
+### 6. 停止
+
+```bat
+scripts\stop-local.bat
+```
+
+### 7. 开发模式
+
+```bat
+scripts\run-dev.bat
+```
+
+### 8. 测试
+
+```bat
+scripts\test.bat
+```
+
+更多细节请阅读 [docs/12-Windows平台部署说明.md](docs/12-Windows平台部署说明.md)。
 
 ## 测试
 
