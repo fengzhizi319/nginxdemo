@@ -71,6 +71,10 @@ export default defineConfig({
     target: 'es2020',
   },
 
+  // 使用 style-loader 将 CSS 注入到 <style> 标签中，避免生产环境异步加载 CSS chunk
+  // 导致首页样式丢失/页面空白的问题。
+  styleLoader: {},
+
   // 开发时代理：把 /api 开头的请求转发到 Tomcat 上的后端
   /**
    * 前端配置的 proxy（仅开发时使用）

@@ -81,12 +81,16 @@ export default defineConfig({
     },
   },
   outputPath: 'dist',                 // 构建产物输出目录
+
+  // 使用 style-loader 注入 CSS，避免生产环境异步加载 CSS chunk 导致页面空白
+  styleLoader: {},
 });
 ```
 
 **学习要点**：
 - `history: { type: 'browser' }` 使 URL 更美观（如 `/user` 而非 `/#/user`），但需要 Nginx 配置 `try_files $uri $uri/ /index.html;` 否则刷新会 404
 - `proxy` 仅在开发环境生效，生产环境由 Nginx 处理反向代理
+- `styleLoader: {}` 让 CSS Modules 的样式随 JS 一起注入到 `<style>` 标签中，避免生产环境异步加载 CSS chunk 导致首页空白
 
 ---
 
@@ -96,9 +100,16 @@ export default defineConfig({
 
 **当前实现**：
 ```typescript
-export const onInitialStateChange = () => {
-  // 示例：可以在这里打印日志或做权限校验
-};
+/**
+ * UmiJS 的运行时配置文件。
+ *
+ * 注意：不要导出 Umi 不认识的 key，否则生产构建运行时会报错
+ *       "register failed, invalid key xxx"，导致页面空白。
+ */
+// 应用首次渲染前可以在这里执行初始化逻辑
+// export const onInitialStateChange = () => {
+//   // 示例：可以在这里打印日志或做权限校验
+// };
 ```
 
 **扩展场景**：
@@ -443,7 +454,7 @@ location / {
 ✅ **现代化 React 开发**：使用 UmiJS 4 + TypeScript  
 ✅ **约定优于配置**：自动路由、零配置启动  
 ✅ **前后端分离**：通过 Nginx 反向代理整合  
-✅ **SPA 最佳实践**：History 路由、懒加载、错误处理  
+✅ **SPA 最佳实践**：History 路由、路由懒加载、错误处理  
 
 这是一个最小化但完整的前端示例，可作为学习 Nginx + Tomcat 全栈部署的起点。
 ## umirc.ts作用，前端配置的 proxy的作用

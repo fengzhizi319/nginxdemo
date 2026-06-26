@@ -211,6 +211,93 @@ cd frontend && npm run dev
 
 更多手动分步运行方式请阅读 [docs/10-测试说明.md](docs/10-测试说明.md)。
 
+## 生产环境部署
+
+生产环境使用 **Nginx** 作为反向代理和静态资源服务器，**外置 Tomcat** 作为 Servlet 容器运行 Spring Boot 后端。与开发模式最大的区别是：前端已构建为静态文件，Nginx 直接处理 `/api/*` 反向代理，不再依赖 Umi 开发服务器的 proxy。
+
+### 1. 构建生产产物
+
+```bash
+./scripts/build.sh
+```
+
+构建完成后会生成：
+
+- 后端 WAR：`tomcat/webapps/backend.war`
+- 前端静态资源：`frontend/dist/`
+
+> 如需跳过测试加速构建，可执行：`SKIP_TESTS=true ./scripts/build.sh`
+
+### 2. Nginx 生产配置
+
+生产环境使用系统级 Nginx（由 `systemd` 管理），站点配置文件位于：
+
+- `/etc/nginx/sites-available/nginxdemo`
+- 通过软链接启用：`/etc/nginx/sites-enabled/nginxdemo`
+
+关键配置说明（已默认配置好）：
+
+| 配置项 | 说明 |
+|--------|------|
+| `listen 8088` | Nginx 监听端口 |
+| `root /home/charles/code/nginxdemo/frontend/dist` | 前端静态资源根目录 |
+| `location /` | SPA 回退：`try_files $uri $uri/ /index.html` |
+| `location /api/` | 反向代理到 Tomcat：`proxy_pass http://backend_servers/backend/api/` |
+| `upstream backend_servers` | 后端 Tomcat 实例池，默认 `127.0.0.1:8080` |
+
+如果修改了 Nginx 配置，执行以下命令重载即可生效：
+
+```bash
+./scripts/reload-nginx.sh
+```
+
+或手动执行：
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 3. 启动生产服务
+
+```bash
+./scripts/start-local.sh
+```
+
+脚本会完成：
+
+1. 检查 WAR 包和前端 `dist` 是否存在。
+2. 确保系统 Nginx 已启动并加载 `nginxdemo` 站点配置。
+3. 启动项目内的外置 Tomcat，监听 `8080` 端口。
+
+### 4. 访问生产环境
+
+- 前端页面：<http://127.0.0.1:8088>
+- 用户列表 API（经 Nginx 代理）：<http://127.0.0.1:8088/api/users>
+- 后端直连（不经过 Nginx）：<http://127.0.0.1:8080/backend/api/users>
+
+### 5. 停止生产服务
+
+```bash
+./scripts/stop-local.sh
+```
+
+该脚本会停止 Tomcat；系统 Nginx 仍由 `systemd` 管理，如需停止可执行：
+
+```bash
+sudo systemctl stop nginx
+```
+
+### 6. 开发模式与生产模式对比
+
+| 对比项 | 开发模式 (`run-dev.sh`) | 生产模式 (`start-local.sh`) |
+|--------|------------------------|----------------------------|
+| 前端 | Umi dev server（端口 8000） | Nginx 托管静态文件（端口 8088） |
+| 后端 | 内嵌 Tomcat（端口 8081） | 外置 Tomcat（端口 8080） |
+| API 代理 | Umi `proxy` 转发 `/api` | Nginx `location /api/` 反向代理 |
+| 是否热更新 | 是 | 否，需重新构建 |
+| 用途 | 开发调试 | 部署运行 |
+
 ## 推荐阅读顺序
 
 | 顺序 | 文档 | 内容 |

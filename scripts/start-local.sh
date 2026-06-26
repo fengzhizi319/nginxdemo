@@ -69,7 +69,7 @@ else
 fi
 
 # 确认 nginxdemo 站点配置已加载
-if [ -L /etc/nginx/sites-enabled/nginxdemo ] && nginx -t >/dev/null 2>&1; then
+if [ -L /etc/nginx/sites-enabled/nginxdemo ] && sudo nginx -t >/dev/null 2>&1; then
     echo "nginxdemo 站点配置已加载。"
 else
     echo "警告：未能确认 nginxdemo 站点配置是否已加载，请检查 /etc/nginx/sites-enabled/nginxdemo"
