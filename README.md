@@ -273,6 +273,7 @@ sudo systemctl reload nginx
 ### 4. 访问生产环境
 
 - 前端页面：<http://127.0.0.1:8088>
+- 前端页面：http://localhost:8088/
 - 用户列表 API（经 Nginx 代理）：<http://127.0.0.1:8088/api/users>
 - 后端直连（不经过 Nginx）：<http://127.0.0.1:8080/backend/api/users>
 
