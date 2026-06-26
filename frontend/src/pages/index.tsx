@@ -47,9 +47,15 @@ export default function HomePage() {
       />
       <FeatureList heading="项目结构" items={features} />
       <CtaSection
-        heading="开始体验"
-        linkTo="/user"
-        linkText="点击查看用户列表 →"
+          heading="开始体验"
+          linkTo="/user"
+          linkText="点击查看用户列表 →"
+          onButtonClick={(e) => {
+            console.log('来自父组件的自定义逻辑');
+            // 可以发送埋点、显示提示等
+            //   e.preventDefault();  // 手动阻止
+            //   console.log('阻止跳转');
+          }}
       />
     </div>
   );
